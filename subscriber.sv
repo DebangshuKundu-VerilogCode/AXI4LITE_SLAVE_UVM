@@ -1,4 +1,4 @@
-`include "defines.sv"
+`include "defines.svh"
 class subscriber extends uvm_subscriber#(trans);
   
   `uvm_component_utils(subscriber)
