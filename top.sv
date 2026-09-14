@@ -1,18 +1,17 @@
 `include "defines.svh"
-`include "uvm_macros.svh"
 `include "axi_if.sv"
 `include "axi4_lite_slave.sv"
 `include "axi_test_pkg.sv"
-import uvm_pkg::*;
-import axi_test_pkg::*;
 
 module top();
-	bit ACLK;
-	bit ARESETn;
-	axi_if DUV_IF(ACLK,ARESETn);
+  import uvm_pkg::*;
+        import axi_test_pkg::*;
+        bit ACLK;
+        bit ARESETn;
+        axi_if DUV_IF(ACLK,ARESETn);
 
-	axi4_lite_slave DUV(.ACLK(ACLK),
-                       .ARESETN(ARESETn),
+        axi4_lite_slave DUV(.ACLK(ACLK),
+                       .ARESETn(ARESETn),
                        .AWADDR(DUV_IF.AWADDR),
                        .AWPROT(DUV_IF.AWPROT),
                        .AWVALID(DUV_IF.AWVALID),
@@ -33,21 +32,20 @@ module top();
                        .RVALID(DUV_IF.RVALID),
                        .RREADY(DUV_IF.RREADY));
 initial begin
-     uvm_config_db#(virtual axi4_if)::set(null,"*","axi4_if",DUV_IF);
+     uvm_config_db#(virtual axi_if)::set(null,"*","axi_if",DUV_IF);
      $dumpfile("waves.fsdb");
      $dumpvars;
-     run_test();	
-   end 
+     run_test("test_regr");
+   end
 initial begin
-     ARESETn=0;
-     #2 ARESETn=1;
-     #10 ARESETn=0;
+                 ARESETn=1;
+     #1 ARESETn=0;
      repeat(5)@(posedge ACLK);
-     ARESETn=1;
+     #1 ARESETn=1;
    end
 initial begin
      ACLK=1'b0;
-     forever 
+     forever
        #5 ACLK=~ACLK;
    end
 
