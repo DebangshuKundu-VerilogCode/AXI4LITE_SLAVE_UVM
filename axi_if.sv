@@ -1,44 +1,54 @@
-`include "defines.svh"
 interface axi_if(input logic ACLK,input logic ARESETn);
+
 logic [`ADDR_WIDTH-1:0] AWADDR;
 logic [2:0] AWPROT;
 logic AWVALID;
 logic AWREADY;
+
 logic [`DATA_WIDTH-1:0] WDATA;
 logic [(`DATA_WIDTH/8)-1:0] WSTRB;
 logic WVALID;
 logic WREADY;
+
 logic [1:0] BRESP;
 logic BVALID;
 logic BREADY;
+
 logic [`ADDR_WIDTH-1:0] ARADDR;
 logic [2:0] ARPROT;
 logic ARVALID;
 logic ARREADY;
+
 logic [`DATA_WIDTH-1:0] RDATA;
 logic [1:0] RRESP;
 logic RVALID;
 logic RREADY;
 
-bit[2:0]w_state;
-bit r_state;
 clocking inp_drv_cb@(posedge ACLK);
-	default input #1 output #1;
-	output AWADDR;
-	output AWPROT;
-	output AWVALID;
-	output WDATA;
-	output WSTRB;
-	output WVALID;
-	output BREADY;
-	output ARADDR;
-	output ARPROT;
-	output ARVALID;
-	output RREADY;
+        default input #1 output #1;
+        output AWADDR;
+        output AWPROT;
+        output AWVALID;
+        output WDATA;
+        output WSTRB;
+        output WVALID;
+        output BREADY;
+        output ARADDR;
+        output ARPROT;
+        output ARVALID;
+        output RREADY;
+        input RVALID;
+        input BVALID;
+        input ARREADY;
+        input WREADY;
+        input AWREADY;
+        input ARESETn;
+        input BRESP;
 endclocking
 clocking inp_mon_cb@(posedge ACLK);
-	default input #1 output #1;
-	input AWADDR;
+        default input #1 output #1;
+
+        input AWADDR;
   input AWPROT;
   input AWVALID;
   input WDATA;
@@ -49,84 +59,96 @@ clocking inp_mon_cb@(posedge ACLK);
   input ARPROT;
   input ARVALID;
   input RREADY;
-	//input AWREADY;
-	//input WREADY;
-	//input ARREADY;
+        input AWREADY;
+        input WREADY;
+        input ARREADY;
+        input RVALID;
+        input BVALID;
+        input ARESETn;
+        input BRESP;
+        input RRESP;
 endclocking
 clocking out_mon_cb@(posedge ACLK);
-	default input #1 output #1;
-	input AWREADY;
-	input WREADY;
-	input BRESP;
-	input BVALID;
-	input ARREADY;
-	input RDATA;
-	input RRESP;
-	input RVALID;
+        default input #1 output #1;
+        input ARESETn;
+        input AWADDR;
+        input WDATA;
+        input ARADDR;
+        input AWVALID;
+        input WVALID;
+        input ARVALID;
+        input WSTRB;
+        input BREADY;
+        input RREADY;
+        input AWPROT;
+        input ARPROT;
+        input AWREADY;
+        input WREADY;
+        input BRESP;
+        input BVALID;
+        input ARREADY;
+        input RDATA;
+        input RRESP;
+        input RVALID;
 endclocking
+
+property reset;
+@(posedge ACLK) !(ARESETn) |-> RDATA==32'b0 && !RVALID && !BVALID;
+endproperty
+assert property(reset)
+else
+$error("Reset error");
+
+property bvalid;
+@(posedge ACLK) BVALID && !BREADY |=> BVALID;
+endproperty
+assert property(bvalid)
+else
+$error("BVALID error");
+
+property bresp;
+@(posedge ACLK) BVALID |=> !($isunknown(BRESP));
+endproperty
+assert property(bresp)
+else
+$error("BRESP error");
+
+property rvalid;
+@(posedge ACLK) RVALID && !RREADY |=> RVALID;
+endproperty
+assert property(rvalid)
+else
+$error("RVALID error");
+
+property awaddr ;
+@(posedge ACLK) AWVALID |=> !($isunknown(AWADDR));
+endproperty
+assert property(awaddr)
+else
+$error("AWADDR error");
+
+property wdata;
+@(posedge ACLK) WVALID |=> !($isunknown(WDATA)) && !($isunknown(WSTRB));
+endproperty
+assert property(wdata)
+else
+$error("WDATA error");
+
+property rdata;
+@(posedge ACLK) RVALID |=> !($isunknown(RDATA));
+endproperty
+assert property(rdata)
+else
+$error("RDATA error");
+
+property rresp;
+@(posedge ACLK) RVALID |=> !($isunknown(RRESP));
+endproperty
+assert property(rresp)
+else
+$error("RRESP error");
+
 modport INP_DRV(clocking inp_drv_cb);
 modport INP_MON(clocking inp_mon_cb);
 modport OUT_MON(clocking out_mon_cb);
-
-widle_wboth:assert property(
-@(posedge ACLK)
-(w_state==w_idle && ARESETn)|=>(w_state==w_both)
-)
-else
-				`uvm_error("assertion_fail","w_idle to w_both")
-
-wboth_wresp:assert property(
-@(posedge ACLK)
-(AWVALID && WVALID)|=>(w_state==w_resp)
-)
-else
-				`uvm_error("assertion_fail","w_both to w_resp")
-wboth_waddr:assert property(
-@(posedge ACLK)
-(AWVALID && !WVALID)|=>(w_state==w_addr)
-)
-else
-				`uvm_error("assertion fail","w_both->w_addr")
-wboth_wdata:assert property(
-@(posedge ACLK)
-(!AWVALID && WVALID)|=>(w_state==w_data)
-)
-else
-				`uvm_error("assertion fail","wboth to wdata")
-
-waddr_wresp:assert property(
-     @(posedge ACLK)
-     WVALID |=> (w_state==w_resp)
-    )
-    else
-      `uvm_error("assertion_fail","w_addr->w_resp");
-
-
-wdata_wresp:assert property(
-     @(posedge ACLK)
-     AWVALID |=> (w_state==w_resp)
-    )
-    else
-      `uvm_error("assertion_fail","w_data->w_resp");
-
-wresp_widle:assert property(
-     @(posedge ACLK)
-     (state==w_resp && BREADY) |=> (w_state==w_idle)
-    )
-    else
-      `uvm_error("assertion_fail","w_resp->w_idle");
-
-ridle_rdata:assert property(
-     @(posedge ACLK)
-     (state==r_idle && PRESETn) |=> (r_state==r_data)
-    )
-    else
-      `uvm_error("assertion_fail","r_idle->r_data");
-
-rdata_ridle:assert property(
-     @(posedge ACLK)
-     (state==r_data && RREADY) |=> (r_state==r_idle)
-    )
-    else
-      `uvm_error("assertion_fail","r_data->r_idle");
 endinterface
